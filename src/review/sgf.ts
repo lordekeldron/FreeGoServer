@@ -386,3 +386,64 @@ export function sgfFromMoves(args: {
     .join("");
   return `(;${props.join("")}${body})`;
 }
+
+export function appendMoveToGame(
+  game: ParsedGame,
+  point: { x: number; y: number } | "pass",
+  fromPly?: number,
+): ParsedGame {
+  const baseIndex = fromPly !== undefined ? Math.min(fromPly, game.nodes.length - 1) : game.nodes.length - 1;
+  const lastNode = game.nodes[baseIndex]!;
+  const player = sideToPlay(lastNode, game.nodes[0]!);
+  const nextBoard = cloneBoard(lastNode.board);
+  const nextOrigins = cloneOrigins(lastNode.origins);
+  const newPly = baseIndex + 1;
+  let captured = 0;
+
+  if (point !== "pass") {
+    captured = playPoint(nextBoard, nextOrigins, point.x, point.y, player === "B" ? 1 : 2, newPly);
+  }
+
+  const newNode: GameNode = {
+    ply: newPly,
+    player,
+    x: point === "pass" ? null : point.x,
+    y: point === "pass" ? null : point.y,
+    pass: point === "pass",
+    label: point === "pass" ? "pass" : coordLabel(point.x, point.y, game.size),
+    comment: "",
+    board: nextBoard,
+    origins: nextOrigins,
+    capturedBlack: lastNode.capturedBlack + (player === "W" ? captured : 0),
+    capturedWhite: lastNode.capturedWhite + (player === "B" ? captured : 0),
+  };
+
+  const nextNodes = [...game.nodes.slice(0, baseIndex + 1), newNode];
+
+  return {
+    ...game,
+    nodes: nextNodes,
+  };
+}
+
+export function gameToSgf(game: ParsedGame): string {
+  const moves: string[] = [];
+  for (let i = 1; i < game.nodes.length; i += 1) {
+    const node = game.nodes[i]!;
+    if (node.pass || node.x === null || node.y === null) {
+      moves.push("pass");
+    } else {
+      moves.push(coordLabel(node.x, node.y, game.size));
+    }
+  }
+  return sgfFromMoves({
+    size: game.size,
+    komi: game.komi,
+    black: game.black,
+    white: game.white,
+    result: game.result,
+    event: game.event,
+    name: game.name,
+    moves,
+  });
+}
