@@ -1,0 +1,2 @@
+The files in src/engine/katago and the copied Go helpers are adapted from Web KaTrain (MIT) by Sir-Teo: https://github.com/Sir-Teo/web-katrain
+KataGo network weights: g170-b6c96 (lightvector/KataGo), shipped with that project as katago-small.bin.gz.

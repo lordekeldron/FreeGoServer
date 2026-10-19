@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Literata", "Iowan Old Style", Palatino, serif;
+  --color-paper: #f3efe6;
+  --color-paper-2: #e8e2d6;
+  --color-ink: #1c1915;
+  --color-ink-soft: #4e4942;
+  --color-muted: #746e64;
+  --color-line: #d5cec1;
+  --color-pine: #234e42;
+  --color-pine-deep: #1a3b32;
+  --color-wood: #e4c07a;
+  --color-wood-deep: #c49a52;
+  --color-excellent: #1f7a4d;
+  --color-good: #3d6f58;
+  --color-inaccuracy: #8d6410;
+  --color-mistake: #c2410c;
+  --color-blunder: #9f1239;
+  --color-stone-black: #171614;
+  --color-stone-black-hi: #5a554c;
+  --color-stone-white: #f4f0e8;
+  --color-stone-white-hi: #fffcf7;
+  --color-stone-white-edge: #ddd4c6;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-md);
+    background: var(--color-pine);
+    padding-inline: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-paper);
+    transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-pine-deep);
+  }
+
+  .btn-quiet {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-line);
+    background: var(--color-paper);
+    padding-inline: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+  }
+
+  .btn-primary:focus-visible,
+  .btn-quiet:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
