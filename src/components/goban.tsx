@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { GradeId } from "@/review/quality";
+import { gradeFor, type GradeId } from "@/review/quality";
 import type { Suggestion } from "@/review/use-review";
 import { coordLabel, type Color, type ParsedGame } from "@/review/sgf";
 
 const GRADE_COLOR: Record<GradeId, string> = {
   excellent: "var(--color-excellent)",
+  great: "var(--color-great)",
   good: "var(--color-good)",
   inaccuracy: "var(--color-inaccuracy)",
   mistake: "var(--color-mistake)",
@@ -34,6 +35,7 @@ type GobanProps = {
   activeSuggestion: number | null;
   onJump: (ply: number) => void;
   onHoverSuggestion: (id: number | null) => void;
+  onPlayPoint?: (x: number, y: number) => void;
 };
 
 export function Goban({
@@ -48,6 +50,7 @@ export function Goban({
   activeSuggestion,
   onJump,
   onHoverSuggestion,
+  onPlayPoint,
 }: GobanProps) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const node = game.nodes[cursor] ?? game.nodes[0]!;
@@ -186,7 +189,7 @@ export function Goban({
         if (suggestion.pass) return null;
         if (ghosts.some((ghost) => ghost.x === suggestion.x && ghost.y === suggestion.y)) return null;
         const active = suggestion.id === activeSuggestion;
-        const color = GRADE_COLOR[suggestion.pointsLost < 1 ? "excellent" : suggestion.pointsLost < 2.5 ? "good" : suggestion.pointsLost < 5 ? "inaccuracy" : suggestion.pointsLost < 10 ? "mistake" : "blunder"];
+        const color = GRADE_COLOR[gradeFor(suggestion.pointsLost).id];
         return (
           <g key={`sug-${suggestion.id}`}>
             <circle cx={suggestion.x} cy={suggestion.y} r={active ? 0.38 : 0.3} fill={color} opacity={active ? 0.95 : 0.82} />
@@ -224,7 +227,11 @@ export function Goban({
             }}
             onClick={() => {
               const origin = node.origins[y]?.[x] ?? -1;
-              if (origin > 0) onJump(origin);
+              if (origin > 0) {
+                onJump(origin);
+              } else if (!node.board[y]?.[x] && onPlayPoint) {
+                onPlayPoint(x, y);
+              }
             }}
           />
         )),

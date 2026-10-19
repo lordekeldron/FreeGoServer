@@ -7,14 +7,22 @@ export type SampleGame = {
   sgf: string;
 };
 
+export function emptyGameSgf(size = 19, komi = size === 9 ? 5.5 : 6.5): string {
+  return `(;GM[1]FF[4]SZ[${size}]KM[${komi}]RU[Japanese]PB[Black]PW[White])`;
+}
+
+export const EMPTY_19 = emptyGameSgf(19, 6.5);
+export const EMPTY_13 = emptyGameSgf(13, 6.5);
+export const EMPTY_9 = emptyGameSgf(9, 5.5);
+
 const shortNine = sgfFromMoves({
   size: 9,
   komi: 5.5,
-  black: "Preto",
-  white: "Branco",
+  black: "Black",
+  white: "White",
   result: "",
-  name: "Estudo em 9×9",
-  event: "Partida de exemplo",
+  name: "9×9 Game",
+  event: "Sample Game",
   moves: [
     "E5",
     "G3",
@@ -50,13 +58,39 @@ const shortNine = sgfFromMoves({
   ],
 });
 
+const thirteenSample = sgfFromMoves({
+  size: 13,
+  komi: 6.5,
+  black: "Black",
+  white: "White",
+  name: "13×13 Game",
+  event: "Sample Game",
+  moves: [
+    "K10",
+    "D4",
+    "D10",
+    "K4",
+    "G7",
+    "J4",
+    "J3",
+    "H3",
+    "H4",
+    "K3",
+    "D7",
+    "C7",
+    "C8",
+    "B8",
+    "C9",
+  ],
+});
+
 const fuseki = sgfFromMoves({
   size: 19,
   komi: 6.5,
-  black: "Preto",
-  white: "Branco",
-  name: "Fuseki de exemplo",
-  event: "Abertura em 19×19",
+  black: "Black",
+  white: "White",
+  name: "19×19 Fuseki",
+  event: "Opening 19×19",
   moves: [
     "Q16",
     "D16",
@@ -96,15 +130,39 @@ const fuseki = sgfFromMoves({
 
 export const SAMPLES: SampleGame[] = [
   {
-    id: "nine",
-    title: "9×9 curto",
-    detail: "Leitura rápida, bom para o primeiro contato.",
+    id: "empty19",
+    title: "19×19",
+    detail: "Empty 19×19 board",
+    sgf: EMPTY_19,
+  },
+  {
+    id: "empty13",
+    title: "13×13",
+    detail: "Empty 13×13 board",
+    sgf: EMPTY_13,
+  },
+  {
+    id: "empty9",
+    title: "9×9",
+    detail: "Empty 9×9 board",
+    sgf: EMPTY_9,
+  },
+  {
+    id: "nine-sample",
+    title: "9×9 Sample",
+    detail: "9×9 complete game sample",
     sgf: shortNine,
   },
   {
-    id: "nineteen",
-    title: "19×19 fuseki",
-    detail: "Abertura no tabuleiro grande.",
+    id: "thirteen-sample",
+    title: "13×13 Sample",
+    detail: "13×13 opening sample",
+    sgf: thirteenSample,
+  },
+  {
+    id: "nineteen-sample",
+    title: "19×19 Sample",
+    detail: "19×19 opening sample",
     sgf: fuseki,
   },
 ];

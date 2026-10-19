@@ -3,8 +3,8 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Honbo Go Review & Server";
-const APP_DESCRIPTION = "Interactive Go game analysis and review with KataGo AI evaluation, SGF viewer, and board exploration.";
+const APP_NAME = "Free Go Server";
+const APP_DESCRIPTION = "Free Go game review & analysis engine with KataGo AI evaluation, move quality categorization, and SGF explorer.";
 
 export const Route = createRootRoute({
   head: () => ({
