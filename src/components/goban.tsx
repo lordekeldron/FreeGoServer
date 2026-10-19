@@ -25,6 +25,7 @@ type Ghost = { x: number; y: number; player: Color };
 
 type GobanProps = {
   game: ParsedGame;
+  language: "en" | "pt";
   cursor: number;
   gradeIds: Array<GradeId | null>;
   suggestions: Suggestion[];
@@ -40,6 +41,7 @@ type GobanProps = {
 
 export function Goban({
   game,
+  language,
   cursor,
   gradeIds,
   suggestions,
@@ -59,7 +61,11 @@ export function Goban({
   const view = size - 1 + margin * 2;
 
   return (
-    <svg
+    <div className="w-full">
+      <div className="mb-2 min-h-5 text-center text-sm font-semibold tabular-nums text-ink" aria-live="polite">
+        {hover ? `${language === "pt" ? "Coordenada" : "Coordinate"}: ${coordLabel(hover.x, hover.y, size)}` : null}
+      </div>
+      <svg
       viewBox={`${-margin} ${-margin} ${view} ${view}`}
       className="h-auto w-full touch-none select-none"
       role="img"
@@ -206,11 +212,6 @@ export function Goban({
           </g>
         );
       })}
-      {hover ? (
-        <text x={size - 1} y={-0.48} textAnchor="end" fontSize="0.34" fill="var(--color-ink)" fontFamily="var(--font-sans)">
-          {coordLabel(hover.x, hover.y, size)}
-        </text>
-      ) : null}
       {Array.from({ length: size }, (_, y) =>
         Array.from({ length: size }, (_, x) => (
           <rect
@@ -236,6 +237,7 @@ export function Goban({
           />
         )),
       )}
-    </svg>
+      </svg>
+    </div>
   );
 }

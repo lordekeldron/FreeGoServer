@@ -478,6 +478,7 @@ export function ReviewScreen() {
             <div className="mx-auto w-full max-w-[43rem]">
               <Goban
                 game={review.game}
+                language={lang}
                 cursor={review.cursor}
                 gradeIds={review.grades.map((row) => row?.gradeId ?? null)}
                 suggestions={review.suggestions}
