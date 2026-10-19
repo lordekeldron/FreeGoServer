@@ -186,8 +186,6 @@ export function useReview(initialSgf: string) {
     } catch {
       /* keep the sample */
     }
-    // Only on mount. loadSgf writes the same key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -249,7 +247,7 @@ export function useReview(initialSgf: string) {
 
     (async () => {
       try {
-        const { client, isCanceled } = await engineClient();
+        const { client } = await engineClient();
         const node = game.nodes[cursor]!;
         const side = sideToPlay(node, game.nodes[0]!);
         const query = positionQuery(game, cursor);

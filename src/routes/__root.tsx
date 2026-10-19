@@ -3,7 +3,8 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Honbo";
+const APP_NAME = "Honbo Go Review & Server";
+const APP_DESCRIPTION = "Interactive Go game analysis and review with KataGo AI evaluation, SGF viewer, and board exploration.";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -11,6 +12,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
+      { name: "description", content: APP_DESCRIPTION },
       { name: "theme-color", content: "#f3efe6" },
     ],
     links: [

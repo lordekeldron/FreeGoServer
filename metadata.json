@@ -1,0 +1,8 @@
+{
+  "name": "Honbo Go Review & Server",
+  "description": "Interactive Go game analysis and review with KataGo AI evaluation, SGF viewer, and board exploration.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
