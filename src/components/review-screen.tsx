@@ -46,14 +46,16 @@ function formatPoints(value: number, lang: Language): string {
 }
 
 export function ReviewScreen() {
-  const [lang, setLang] = useState<Language>(() => {
+  const [lang, setLang] = useState<Language>("en");
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem("fgs.lang");
-      return saved === "pt" ? "pt" : "en";
+      if (saved === "pt") setLang("pt");
     } catch {
-      return "en";
+      /* private mode */
     }
-  });
+  }, []);
 
   const t = translations[lang];
 
