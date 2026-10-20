@@ -576,47 +576,6 @@ export function ReviewScreen() {
             </div>
           </div>
 
-          {/* Win Rate Area Chart */}
-          <div className="mt-4 h-44 rounded-2xl border border-line bg-paper p-3 shadow-xs">
-            <p className="px-1 text-xs font-medium text-muted">{t.blackWinRate}</p>
-            {chartReady ? (
-              <ResponsiveContainer width="100%" height="86%">
-                <AreaChart
-                  data={chart}
-                  onClick={(state) => {
-                    const index = state?.activeTooltipIndex;
-                    if (typeof index === "number") review.setCursor(index);
-                  }}
-                >
-                  <XAxis dataKey="ply" hide />
-                  <YAxis domain={[0, 100]} hide />
-                  <Tooltip
-                    formatter={(value) => [`${value}%`, t.black]}
-                    labelFormatter={(label) => t.moveLabel.replace("{label}", String(label))}
-                    contentStyle={{
-                      background: "var(--color-paper)",
-                      border: "1px solid var(--color-line)",
-                      borderRadius: 12,
-                      fontSize: 12,
-                    }}
-                  />
-                  <ReferenceLine y={50} stroke="var(--color-line)" strokeDasharray="3 3" />
-                  <ReferenceLine x={review.cursor} stroke="var(--color-pine)" strokeWidth={2} />
-                  <Area
-                    type="monotone"
-                    dataKey="wr"
-                    stroke="var(--color-pine)"
-                    fill="var(--color-pine)"
-                    fillOpacity={0.16}
-                    strokeWidth={2}
-                    connectNulls
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : null}
-          </div>
         </section>
 
         {/* Right Column: Player Cards, Move Quality Breakdown Table, Alternatives */}
@@ -836,6 +795,48 @@ export function ReviewScreen() {
                   })}
                 </div>
               </div>
+            ) : null}
+          </div>
+
+          {/* Win Rate Area Chart */}
+          <div className="h-44 rounded-2xl border border-line bg-paper p-3 shadow-xs">
+            <p className="px-1 text-xs font-medium text-muted">{t.blackWinRate}</p>
+            {chartReady ? (
+              <ResponsiveContainer width="100%" height="86%">
+                <AreaChart
+                  data={chart}
+                  onClick={(state) => {
+                    const index = state?.activeTooltipIndex;
+                    if (typeof index === "number") review.setCursor(index);
+                  }}
+                >
+                  <XAxis dataKey="ply" hide />
+                  <YAxis domain={[0, 100]} hide />
+                  <Tooltip
+                    formatter={(value) => [`${value}%`, t.black]}
+                    labelFormatter={(label) => t.moveLabel.replace("{label}", String(label))}
+                    contentStyle={{
+                      background: "var(--color-paper)",
+                      border: "1px solid var(--color-line)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                  />
+                  <ReferenceLine y={50} stroke="var(--color-line)" strokeDasharray="3 3" />
+                  <ReferenceLine x={review.cursor} stroke="var(--color-pine)" strokeWidth={2} />
+                  <Area
+                    type="monotone"
+                    dataKey="wr"
+                    stroke="var(--color-pine)"
+                    fill="var(--color-pine)"
+                    fillOpacity={0.16}
+                    strokeWidth={2}
+                    connectNulls
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             ) : null}
           </div>
 
