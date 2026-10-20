@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authEnabled, signIn, signOut } from "./client";
+import { GROK_PROVIDERS, authEnabled, authClient, signIn, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
@@ -87,6 +87,105 @@ export function SignInButtons() {
  * gate-materialized — behind the gate the next request signs the viewer
  * straight back in, so a sign-out control there is a broken loop.
  */
+export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
+  const { user, isPending } = useCurrentUserState();
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!authEnabled || isPending || user) return null;
+
+  const isPortuguese = language === "pt";
+  const copy = isPortuguese
+    ? {
+        account: "Criar conta / Entrar",
+        signIn: "Entrar",
+        signUp: "Criar conta",
+        name: "Nome",
+        email: "Email",
+        password: "Senha",
+        google: "Continuar com Google",
+        submitSignIn: "Entrar com email",
+        submitSignUp: "Criar conta com email",
+        switchSignIn: "Já tenho uma conta",
+        switchSignUp: "Ainda não tenho uma conta",
+        close: "Fechar",
+        genericError: "Não foi possível concluir. Verifique os dados e tente novamente.",
+      }
+    : {
+        account: "Create account / Sign in",
+        signIn: "Sign in",
+        signUp: "Create account",
+        name: "Name",
+        email: "Email",
+        password: "Password",
+        google: "Continue with Google",
+        submitSignIn: "Sign in with email",
+        submitSignUp: "Create account with email",
+        switchSignIn: "I already have an account",
+        switchSignUp: "I do not have an account yet",
+        close: "Close",
+        genericError: "Could not complete the request. Check your details and try again.",
+      };
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    const result = mode === "signup"
+      ? await authClient.signUp.email({ email, password, name: name.trim() || "User" })
+      : await authClient.signIn.email({ email, password });
+    setBusy(false);
+    if (result.error) {
+      setError(copy.genericError);
+      return;
+    }
+    setOpen(false);
+    setEmail("");
+    setPassword("");
+    setName("");
+  }
+
+  return (
+    <>
+      <button type="button" className="btn-quiet px-3 py-1.5 text-xs sm:text-sm" onClick={() => setOpen(true)}>
+        {copy.account}
+      </button>
+      {open ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="account-dialog-title" className="w-full max-w-md rounded-2xl border border-line bg-paper p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="account-dialog-title" className="font-display text-xl font-semibold text-ink">{mode === "signup" ? copy.signUp : copy.signIn}</h2>
+                <p className="mt-1 text-xs text-muted">{copy.account}</p>
+              </div>
+              <button type="button" className="text-sm text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={copy.close}>×</button>
+            </div>
+            <button type="button" className="mt-5 w-full rounded-lg border border-line px-3 py-2 text-sm font-medium hover:bg-paper-2" onClick={() => void signIn("grok-google", { callbackURL: "/" })}>
+              {copy.google}
+            </button>
+            <div className="my-4 flex items-center gap-3 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
+            <form className="space-y-3" onSubmit={(event) => void submit(event)}>
+              {mode === "signup" ? <label className="block text-xs font-medium text-ink-soft">{copy.name}<input required={false} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-pine" /></label> : null}
+              <label className="block text-xs font-medium text-ink-soft">{copy.email}<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-pine" /></label>
+              <label className="block text-xs font-medium text-ink-soft">{copy.password}<input type="password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-pine" /></label>
+              {error ? <p className="text-xs text-red-600" role="alert">{error}</p> : null}
+              <button type="submit" disabled={busy} className="btn-primary w-full px-3 py-2 text-sm disabled:cursor-wait disabled:opacity-60">{busy ? "…" : mode === "signup" ? copy.submitSignUp : copy.submitSignIn}</button>
+            </form>
+            <button type="button" className="mt-4 w-full text-xs text-muted underline underline-offset-4" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(null); }}>
+              {mode === "signup" ? copy.switchSignIn : copy.switchSignUp}
+            </button>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function UserButton() {
   const user = useCurrentUser();
   // Sign-out can take a moment (and can fail when deployed), so the control
