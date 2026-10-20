@@ -46,13 +46,26 @@ function formatPoints(value: number, lang: Language): string {
   });
 }
 
+type UiTheme = "light" | "dark" | "coffee";
+
+const THEME_LABELS: Record<UiTheme, { en: string; pt: string }> = {
+  light: { en: "Light", pt: "Claro" },
+  dark: { en: "Dark", pt: "Escuro" },
+  coffee: { en: "Coffee", pt: "Café" },
+};
+
 export function ReviewScreen() {
   const [lang, setLang] = useState<Language>("en");
+  const [theme, setTheme] = useState<UiTheme>("coffee");
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("fgs.lang");
       if (saved === "pt") setLang("pt");
+      const savedTheme = localStorage.getItem("fgs.theme");
+      if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "coffee") {
+        setTheme(savedTheme);
+      }
     } catch {
       /* private mode */
     }
@@ -65,6 +78,15 @@ export function ReviewScreen() {
     setLang(nextLang);
     try {
       localStorage.setItem("fgs.lang", nextLang);
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function chooseTheme(nextTheme: UiTheme) {
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem("fgs.theme", nextTheme);
     } catch {
       /* private mode */
     }
@@ -210,7 +232,7 @@ export function ReviewScreen() {
 
   return (
     <div
-      className="min-h-screen bg-paper text-ink"
+      className={`theme-${theme} min-h-screen bg-paper text-ink`}
       onDragOver={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -285,6 +307,23 @@ export function ReviewScreen() {
             <span className="text-muted">/</span>
             <span className={lang === "pt" ? "font-bold text-pine" : "text-muted"}>PT</span>
           </button>
+
+          <div className="inline-flex items-center rounded-lg border border-line bg-paper-2 p-0.5" aria-label={lang === "pt" ? "Tema visual" : "Visual theme"}>
+            {(Object.keys(THEME_LABELS) as UiTheme[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => chooseTheme(option)}
+                className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors sm:text-xs ${
+                  theme === option ? "bg-pine text-paper shadow-xs" : "text-ink-soft hover:text-ink"
+                }`}
+                aria-pressed={theme === option}
+                title={THEME_LABELS[option][lang]}
+              >
+                {THEME_LABELS[option][lang]}
+              </button>
+            ))}
+          </div>
 
           {/* SGF Actions */}
           <button
