@@ -73,10 +73,18 @@ function setBearerToken(token: string | null): void {
  * popup there and a normal redirect everywhere else.
  */
 function inLivePreview(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.location.hostname.endsWith(".grok-sandbox.com")
-  );
+  if (typeof window === "undefined") return false;
+
+  // v0 previews run the app inside a cross-site iframe. Detecting only the
+  // legacy grok-sandbox hostname makes OAuth navigate the iframe itself, where
+  // the browser can block the redirect instead of opening the account chooser.
+  try {
+    return window.top !== window.self || window.location.hostname.endsWith(".grok-sandbox.com");
+  } catch {
+    // Cross-origin access can throw; being unable to compare frames still means
+    // this is an embedded preview and should use the popup flow.
+    return true;
+  }
 }
 
 /** Message the popup posts back to the opener once sign-in completes. */
