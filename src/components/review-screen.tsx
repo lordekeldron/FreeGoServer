@@ -256,7 +256,11 @@ export function ReviewScreen() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Donate Button */}
           <a
-            href="https://www.paypal.com/donate/?hosted_button_id=G78Q5TTR2MDNL"
+            href={
+              lang === "en"
+                ? "https://www.paypal.com/donate/?hosted_button_id=Y382V6364XNM8"
+                : "https://www.paypal.com/donate/?hosted_button_id=G78Q5TTR2MDNL"
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-amber-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 sm:text-sm"
