@@ -57,7 +57,7 @@ export function getBearerToken(): string | null {
   }
 }
 
-function setBearerToken(token: string | null): void {
+export function setBearerToken(token: string | null): void {
   if (typeof window === "undefined") return;
   try {
     if (token) window.sessionStorage.setItem(BEARER_KEY, token);
@@ -131,7 +131,10 @@ export async function signIn(
   if (inLivePreview()) {
     if (!popup) throw new Error("Pop-up blocked — allow pop-ups for sign-in");
     const token = await waitForPopupToken(popup);
-    if (!token) throw new Error("Sign-in was cancelled or failed");
+    if (!token) {
+      // User dismissed the popup or cancelled sign-in
+      return;
+    }
     setBearerToken(token);
     // Refresh the client session store with the bearer attached (onRequest).
     // Avoid a full iframe reload when we're already on the destination — that
@@ -146,6 +149,8 @@ export async function signIn(
       const here = window.location;
       if (dest.origin !== here.origin || dest.pathname !== here.pathname || dest.search !== here.search) {
         window.location.href = callbackURL;
+      } else {
+        window.location.reload();
       }
     }
     return;
@@ -182,7 +187,7 @@ function openSignInPopup(providerId: string): Window | null {
  * for the user to dismiss the popup).
  */
 function waitForPopupToken(popup: Window): Promise<string | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const origin = window.location.origin;
     let settled = false;
     let closeTimer: number | undefined;
@@ -192,16 +197,30 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
       cleanup();
       resolve(token);
     };
+    const settleError = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err);
+    };
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) return;
       const data = event.data as PopupMessage | undefined;
       if (!data || data.source !== "grok-auth-popup") return;
-      settle(data.token ?? null);
+      if (data.error) {
+        settleError(new Error(data.error));
+      } else {
+        settle(data.token ?? null);
+      }
     };
     // Fallback when the user dismisses the popup. Grace period lets the
     // completion page's postMessage win over a racing `popup.closed`.
     const pollTimer = window.setInterval(() => {
-      if (!popup.closed) return;
+      try {
+        if (!popup.closed) return;
+      } catch {
+        return;
+      }
       window.clearInterval(pollTimer);
       closeTimer = window.setTimeout(() => settle(null), 400);
     }, 300);
