@@ -13,6 +13,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AccountButton } from "@/lib/auth/gates";
 import { Goban } from "@/components/goban";
 import { translations, type Language } from "@/lib/i18n";
 import { GRADES, type GradeId } from "@/review/quality";
@@ -254,6 +255,8 @@ export function ReviewScreen() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <AccountButton language={lang} />
+
           {/* Donate Button */}
           <a
             href={
