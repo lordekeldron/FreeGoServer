@@ -16,12 +16,11 @@
  * client (preview-only, `*.grok-sandbox.com`) — rotate it by regenerating the
  * broker env var and this constant together.
  */
-export const PREVIEW_CLIENT_ID = "grok_preview";
-export const PREVIEW_CLIENT_SECRET =
-  "8bcdb7fc5a33874ad933ca568918d5790388a0795e44c4d1dea691f801b17ec5";
+export const PREVIEW_CLIENT_ID = "";
+export const PREVIEW_CLIENT_SECRET = "";
 
-/** The shared auth broker issuer (OIDC discovery lives under it). */
-export const GROK_ISSUER_DEFAULT = "https://auth.grok.me";
+/** The shared auth broker issuer (empty by default on Free Go Server). */
+export const GROK_ISSUER_DEFAULT = "";
 
 /**
  * Host patterns whose callbacks the preview client accepts. Better Auth derives
