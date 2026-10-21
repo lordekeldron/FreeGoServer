@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ExternalLink,
   Cpu,
@@ -11,11 +11,11 @@ import {
 import {
   OFFICIAL_ANALYSIS_PRESETS,
   OFFICIAL_KATAGO_RELEASES,
-  fetchOfficialKataGoReleases,
   getActiveEngineCapabilities,
   type KataGoAnalysisPreset,
   type OfficialKataGoRelease,
 } from "@/engine/katago/officialKataGoSync";
+import { useKataGoAutoUpdater } from "@/engine/katago/katagoAutoUpdater";
 import { KATAGO_HUMAN_PROFILES } from "@/engine/katago/searchParams";
 
 interface KatagoUpdatesModalProps {
@@ -38,26 +38,27 @@ export function KatagoUpdatesModal({
   onSelectHumanRank,
 }: KatagoUpdatesModalProps) {
   const isPt = language === "pt";
-  const [releases, setReleases] = useState<OfficialKataGoRelease[]>(OFFICIAL_KATAGO_RELEASES);
+  const updater = useKataGoAutoUpdater();
   const [activeTab, setActiveTab] = useState<"releases" | "presets" | "capabilities">("releases");
-  const [loading, setLoading] = useState(false);
   const capabilities = getActiveEngineCapabilities();
 
-  useEffect(() => {
-    if (!isOpen) return;
-    let mounted = true;
-    void (async () => {
-      setLoading(true);
-      const list = await fetchOfficialKataGoReleases();
-      if (mounted) {
-        setReleases(list);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [isOpen]);
+  const releases: OfficialKataGoRelease[] = updater.releases.length > 0
+    ? updater.releases.map((rel) => {
+        const found = OFFICIAL_KATAGO_RELEASES.find((r) => r.tag === rel.tag);
+        if (found) return found;
+        return {
+          tag: rel.tag,
+          name: rel.name,
+          date: rel.publishedAt ? new Date(rel.publishedAt).toLocaleDateString() : "Recent",
+          summaryEn: rel.description.slice(0, 160) + "...",
+          summaryPt: "Lançamento oficial sincronizado com o repositório lightvector/katago.",
+          featuresEn: ["Official KataGo binary and network updates from GitHub"],
+          featuresPt: ["Atualizações oficiais de binários e redes neurais sincronizadas do GitHub"],
+          architectures: ["b18c384nbt-uec", "b28c512nbt"],
+          githubUrl: rel.githubUrl,
+        };
+      })
+    : OFFICIAL_KATAGO_RELEASES;
 
   if (!isOpen) return null;
 
@@ -84,18 +85,37 @@ export function KatagoUpdatesModal({
                 <h2 id="katago-modal-title" className="font-display text-xl font-bold text-ink">
                   KataGo AI Engine
                 </h2>
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
-                  v1.18.1
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
+                  {updater.currentVersion}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {isPt ? "Auto-Update Ativo" : "Auto-Update Active"}
                 </span>
               </div>
               <p className="text-xs text-muted">
                 {isPt
-                  ? "Sincronizado e replicado com o repositório oficial lightvector/katago"
-                  : "Synchronized and replicated from official lightvector/katago repository"}
+                  ? "Sincronizado e atualizado automaticamente com o repositório oficial lightvector/katago"
+                  : "Synchronized & auto-updated automatically with the official lightvector/katago repository"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={updater.status === "checking" || updater.status === "updating"}
+              onClick={() => void updater.checkForUpdates(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-pine/40 bg-pine/5 px-3 py-1 text-xs font-semibold text-pine hover:bg-pine/10 disabled:opacity-60 transition-colors"
+            >
+              <RefreshCw className={`size-3.5 ${updater.status === "checking" || updater.status === "updating" ? "animate-spin" : ""}`} />
+              <span>
+                {updater.status === "checking"
+                  ? isPt ? "Verificando..." : "Checking..."
+                  : updater.status === "updating"
+                  ? isPt ? "Atualizando..." : "Updating..."
+                  : isPt ? "Buscar Atualizações" : "Check Updates"}
+              </span>
+            </button>
             <a
               href="https://github.com/lightvector/katago"
               target="_blank"
@@ -117,6 +137,23 @@ export function KatagoUpdatesModal({
           </div>
         </div>
 
+        {/* Update Notification Banner */}
+        {updater.notificationMessage ? (
+          <div className="flex items-center justify-between border-b border-emerald-200 bg-emerald-50 px-6 py-2.5 text-xs font-medium text-emerald-900">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+              <span>{updater.notificationMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => updater.dismissNotification()}
+              className="text-emerald-700 hover:text-emerald-900 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+
         {/* Navigation Tabs */}
         <div className="flex border-b border-line bg-paper-2/50 px-6">
           <button
@@ -128,7 +165,7 @@ export function KatagoUpdatesModal({
                 : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            {isPt ? "Atualizações Oficiais" : "Official Releases"}
+            {isPt ? "Atualizações Oficiais & Status" : "Official Releases & Status"}
           </button>
           <button
             type="button"
@@ -158,18 +195,33 @@ export function KatagoUpdatesModal({
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "releases" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-muted">
-                <span>
-                  {isPt
-                    ? "Histórico completo de atualizações do lightvector/katago"
-                    : "Complete update history from lightvector/katago"}
-                </span>
-                {loading ? (
-                  <span className="flex items-center gap-1 text-pine">
-                    <RefreshCw className="size-3 animate-spin" />
-                    {isPt ? "Verificando..." : "Checking..."}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-paper-2/40 p-3.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-ink">
+                    {isPt ? "Sincronização Contínua Automática:" : "Continuous Auto-Sync:"}
                   </span>
-                ) : null}
+                  <span className="font-mono text-pine font-bold">
+                    {updater.autoUpdateEnabled ? (isPt ? "ATIVADA" : "ENABLED") : (isPt ? "DESATIVADA" : "DISABLED")}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {updater.lastCheckedAt ? (
+                    <span className="text-muted text-[11px]">
+                      {isPt
+                        ? `Última verificação: ${new Date(updater.lastCheckedAt).toLocaleTimeString()}`
+                        : `Last checked: ${new Date(updater.lastCheckedAt).toLocaleTimeString()}`}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => updater.toggleAutoUpdate(!updater.autoUpdateEnabled)}
+                    className="rounded-lg border border-line bg-paper px-2.5 py-1 font-semibold text-ink hover:bg-paper-2 text-[11px]"
+                  >
+                    {updater.autoUpdateEnabled
+                      ? isPt ? "Desativar Auto-Update" : "Disable Auto-Update"
+                      : isPt ? "Ativar Auto-Update" : "Enable Auto-Update"}
+                  </button>
+                </div>
               </div>
 
               {releases.map((release) => (

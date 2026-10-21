@@ -17,6 +17,7 @@ import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YA
 import { AccountButton, UserButton } from "@/lib/auth/gates";
 import { Goban } from "@/components/goban";
 import { KatagoUpdatesModal } from "@/components/katago-updates-modal";
+import { useKataGoAutoUpdater } from "@/engine/katago/katagoAutoUpdater";
 import { translations, type Language } from "@/lib/i18n";
 import { GRADES, type GradeId } from "@/review/quality";
 import { EMPTY_19, SAMPLES } from "@/review/samples";
@@ -106,6 +107,7 @@ export function ReviewScreen() {
   const [katagoModalOpen, setKatagoModalOpen] = useState(false);
   const [activePresetId, setActivePresetId] = useState("balanced");
   const [activeHumanRank, setActiveHumanRank] = useState("rank_1d");
+  const katagoUpdater = useKataGoAutoUpdater();
   const [dragging, setDragging] = useState(false);
   const [chartReady, setChartReady] = useState(false);
 
@@ -250,6 +252,24 @@ export function ReviewScreen() {
         if (file) void readFile(file);
       }}
     >
+      {/* Auto-Update Notification Banner */}
+      {katagoUpdater.notificationMessage ? (
+        <div className="flex items-center justify-between border-b border-emerald-400 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm">
+          <div className="mx-auto flex max-w-6xl items-center gap-2">
+            <Sparkles className="size-4 shrink-0" />
+            <span>{katagoUpdater.notificationMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => katagoUpdater.dismissNotification()}
+            className="rounded p-1 text-white hover:bg-emerald-700 font-bold"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
       {/* Top progress bar */}
       <div className="h-1 bg-line" aria-hidden="true">
         <div
@@ -280,7 +300,7 @@ export function ReviewScreen() {
                 title={lang === "pt" ? "Ver atualizações oficiais do KataGo e configurações" : "View official KataGo updates & settings"}
               >
                 <Cpu className="size-3 text-pine" />
-                <span>KataGo v1.18.1</span>
+                <span>KataGo {katagoUpdater.currentVersion}</span>
               </button>
             </div>
             <p className="text-xs text-muted">{t.siteTagline}</p>
@@ -297,6 +317,9 @@ export function ReviewScreen() {
           >
             <Cpu className="size-4 text-pine" aria-hidden="true" />
             <span>{lang === "pt" ? "Atualizações KataGo" : "KataGo Updates"}</span>
+            {katagoUpdater.status === "checking" || katagoUpdater.status === "updating" ? (
+              <span className="size-2 rounded-full bg-pine animate-ping" />
+            ) : null}
           </button>
 
           <AccountButton language={lang} />
