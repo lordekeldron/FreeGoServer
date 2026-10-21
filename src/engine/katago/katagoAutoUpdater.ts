@@ -52,24 +52,27 @@ const STORAGE_KEYS = {
 
 export const BASELINE_KATAGO_VERSION = "v1.18.1";
 
+export const INITIAL_KATAGO_AUTO_UPDATE_STATE: KataGoAutoUpdateState = {
+  currentVersion: BASELINE_KATAGO_VERSION,
+  latestVersion: BASELINE_KATAGO_VERSION,
+  lastCheckedAt: null,
+  status: "idle",
+  autoUpdateEnabled: true,
+  releases: [],
+  notificationMessage: null,
+  notificationType: null,
+};
+
 class KataGoAutoUpdaterService {
-  private state: KataGoAutoUpdateState = {
-    currentVersion: BASELINE_KATAGO_VERSION,
-    latestVersion: BASELINE_KATAGO_VERSION,
-    lastCheckedAt: null,
-    status: "idle",
-    autoUpdateEnabled: true,
-    releases: [],
-    notificationMessage: null,
-    notificationType: null,
-  };
+  private state: KataGoAutoUpdateState = { ...INITIAL_KATAGO_AUTO_UPDATE_STATE };
 
   private listeners = new Set<(state: KataGoAutoUpdateState) => void>();
   private pollIntervalTimer: number | null = null;
   private isInitialized = false;
 
   constructor() {
-    this.loadPersistedState();
+    // Initial state strictly matches SSR defaults to prevent hydration mismatch.
+    // Client-side persisted state is loaded on init() inside useEffect.
   }
 
   private loadPersistedState() {
@@ -131,11 +134,15 @@ class KataGoAutoUpdaterService {
   }
 
   /**
-   * Initializes automatic update checks on application start
+   * Initializes automatic update checks on application start (client-side only)
    */
   public init() {
     if (this.isInitialized || typeof window === "undefined") return;
     this.isInitialized = true;
+
+    // Load any client-persisted version after hydration
+    this.loadPersistedState();
+    this.notify();
 
     // Check for updates shortly after boot if enabled
     if (this.state.autoUpdateEnabled) {
@@ -284,10 +291,13 @@ class KataGoAutoUpdaterService {
 export const kataGoAutoUpdater = new KataGoAutoUpdaterService();
 
 export function useKataGoAutoUpdater() {
-  const [updaterState, setUpdaterState] = useState<KataGoAutoUpdateState>(() => kataGoAutoUpdater.getState());
+  const [updaterState, setUpdaterState] = useState<KataGoAutoUpdateState>(INITIAL_KATAGO_AUTO_UPDATE_STATE);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     kataGoAutoUpdater.init();
+    setUpdaterState(kataGoAutoUpdater.getState());
     const unsubscribe = kataGoAutoUpdater.subscribe((next) => {
       setUpdaterState(next);
     });
@@ -296,6 +306,7 @@ export function useKataGoAutoUpdater() {
 
   return {
     ...updaterState,
+    isClient,
     checkForUpdates: (force = true) => kataGoAutoUpdater.checkForUpdates(force),
     toggleAutoUpdate: (enabled: boolean) => kataGoAutoUpdater.toggleAutoUpdate(enabled),
     applyRelease: (tag: string) => kataGoAutoUpdater.applyRelease(tag),

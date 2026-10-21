@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { authClient, setBearerToken, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
@@ -49,6 +49,7 @@ export function RedirectToSignIn({ to = "/login" }: { to?: string }) {
 
 export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
   const { user } = useCurrentUserState();
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -57,8 +58,12 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // If already logged in with a real account, hide the sign-in modal trigger
-  if (user && !user.isDevFallback) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Only hide the sign-in modal trigger once mounted on client and user is verified
+  if (mounted && user && !user.isDevFallback) return null;
 
   const isPortuguese = language === "pt";
   const copy = isPortuguese
@@ -167,6 +172,7 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
     <>
       <button
         type="button"
+        suppressHydrationWarning
         className="btn-quiet flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium sm:text-sm"
         onClick={() => setOpen(true)}
       >
@@ -174,7 +180,7 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
-        <span>{copy.account}</span>
+        <span suppressHydrationWarning>{copy.account}</span>
       </button>
 
       {open ? (
@@ -330,6 +336,7 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
 
 export function UserButton({ language = "en" }: { language?: "en" | "pt" }) {
   const user = useCurrentUser();
+  const [mounted, setMounted] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const gateSession = useSyncExternalStore(
     subscribeToNothing,
@@ -337,7 +344,11 @@ export function UserButton({ language = "en" }: { language?: "en" | "pt" }) {
     noGateSessionOnServer,
   );
 
-  if (!user || user.isDevFallback) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !user || user.isDevFallback) return null;
 
   const label = user.displayName ?? user.primaryEmail ?? "User";
   const isPortuguese = language === "pt";

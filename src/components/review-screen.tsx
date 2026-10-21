@@ -43,10 +43,8 @@ const GRADE_BG_CLASS: Record<GradeId, string> = {
 };
 
 function formatPoints(value: number, lang: Language): string {
-  return value.toLocaleString(lang === "pt" ? "pt-BR" : "en-US", {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: 1,
-  });
+  const fixed = value.toFixed(1);
+  return lang === "pt" ? fixed.replace(".", ",") : fixed;
 }
 
 type UiTheme = "light" | "dark" | "coffee";
@@ -60,8 +58,10 @@ const THEME_LABELS: Record<UiTheme, { en: string; pt: string }> = {
 export function ReviewScreen() {
   const [lang, setLang] = useState<Language>("en");
   const [theme, setTheme] = useState<UiTheme>("coffee");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     try {
       const saved = localStorage.getItem("fgs.lang");
       if (saved === "pt") setLang("pt");
@@ -253,8 +253,11 @@ export function ReviewScreen() {
       }}
     >
       {/* Auto-Update Notification Banner */}
-      {katagoUpdater.notificationMessage ? (
-        <div className="flex items-center justify-between border-b border-emerald-400 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm">
+      {mounted && katagoUpdater.notificationMessage ? (
+        <div
+          suppressHydrationWarning
+          className="flex items-center justify-between border-b border-emerald-400 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm"
+        >
           <div className="mx-auto flex max-w-6xl items-center gap-2">
             <Sparkles className="size-4 shrink-0" />
             <span>{katagoUpdater.notificationMessage}</span>
@@ -296,11 +299,12 @@ export function ReviewScreen() {
               <button
                 type="button"
                 onClick={() => setKatagoModalOpen(true)}
+                suppressHydrationWarning
                 className="inline-flex items-center gap-1.5 rounded-md border border-line bg-paper-2 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-ink-soft uppercase hover:border-pine hover:bg-pine/5 hover:text-pine transition-colors cursor-pointer"
                 title={lang === "pt" ? "Ver atualizações oficiais do KataGo e configurações" : "View official KataGo updates & settings"}
               >
                 <Cpu className="size-3 text-pine" />
-                <span>KataGo {katagoUpdater.currentVersion}</span>
+                <span suppressHydrationWarning>KataGo {katagoUpdater.currentVersion}</span>
               </button>
             </div>
             <p className="text-xs text-muted">{t.siteTagline}</p>
@@ -508,7 +512,7 @@ export function ReviewScreen() {
                 <p className="text-xs text-muted">
                   {review.game.black} × {review.game.white}
                   {review.game.result ? ` · ${review.game.result}` : ""}
-                  {` · komi ${review.game.komi.toLocaleString(lang === "pt" ? "pt-BR" : "en-US")}`}
+                  {` · komi ${lang === "pt" ? String(review.game.komi).replace(".", ",") : String(review.game.komi)}`}
                   {` · ${review.game.size}×${review.game.size}`}
                 </p>
               </div>
@@ -771,7 +775,11 @@ export function ReviewScreen() {
                                 ? "bg-paper-2 text-ink hover:bg-line/60"
                                 : "cursor-default text-muted/50"
                             } ${isBlackOpen ? "ring-2 ring-pine" : ""}`}
-                            title={`View Black's ${item.label} moves`}
+                            title={
+                              lang === "pt"
+                                ? `Ver lances ${item.label} das Pretas`
+                                : `View Black's ${item.labelEn} moves`
+                            }
                           >
                             <span>{blackCount}</span>
                             {blackCount > 0 ? (
@@ -806,7 +814,11 @@ export function ReviewScreen() {
                                 ? "bg-paper-2 text-ink hover:bg-line/60"
                                 : "cursor-default text-muted/50"
                             } ${isWhiteOpen ? "ring-2 ring-pine" : ""}`}
-                            title={`View White's ${item.label} moves`}
+                            title={
+                              lang === "pt"
+                                ? `Ver lances ${item.label} das Brancas`
+                                : `View White's ${item.labelEn} moves`
+                            }
                           >
                             <span>{whiteCount}</span>
                             {whiteCount > 0 ? (
