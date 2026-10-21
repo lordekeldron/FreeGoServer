@@ -3,11 +3,9 @@ import {
   ExternalLink,
   Cpu,
   Sparkles,
-  Zap,
   CheckCircle2,
   RefreshCw,
   GitBranch,
-  ShieldCheck,
   Award,
 } from "lucide-react";
 import {

@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
-import { authClient, setBearerToken, signIn, signOut } from "./client";
+import { authClient, setBearerToken, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
@@ -72,10 +72,13 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
         google: "Continuar com Google",
         submitSignIn: "Entrar com email",
         submitSignUp: "Criar conta com email",
+        guestLogin: "Entrar como Convidado (1 clique)",
         switchSignIn: "Já tem uma conta? Entrar",
         switchSignUp: "Não tem uma conta? Cadastre-se",
         close: "Fechar",
         genericError: "Não foi possível concluir. Verifique os dados e tente novamente.",
+        googleNotice:
+          "O login com Google requer credenciais GOOGLE_CLIENT_ID configuradas no Free Go Server. Por favor, utilize o cadastro direto com Email e Senha abaixo (não depende de servidores externos!).",
       }
     : {
         account: "Create account / Sign in",
@@ -87,11 +90,46 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
         google: "Continue with Google",
         submitSignIn: "Sign in with email",
         submitSignUp: "Create account with email",
+        guestLogin: "Quick Guest Login (1-click)",
         switchSignIn: "Already have an account? Sign in",
         switchSignUp: "Don't have an account? Sign up",
         close: "Close",
         genericError: "Could not complete the request. Check your details and try again.",
+        googleNotice:
+          "Google Sign-In requires GOOGLE_CLIENT_ID configured for Free Go Server. Please use the direct Email & Password registration below (fully independent!).",
       };
+
+  async function quickGuest() {
+    setBusy(true);
+    setError(null);
+    try {
+      const guestEmail = `guest_${Math.random().toString(36).substring(2, 8)}@freegoserver.org`;
+      const guestPassword = `Guest_${Math.random().toString(36).substring(2, 10)}!`;
+      const guestName = isPortuguese ? "Jogador Convidado" : "Guest Player";
+      const result = await authClient.signUp.email({
+        email: guestEmail,
+        password: guestPassword,
+        name: guestName,
+      });
+      if (result.error) {
+        setError(result.error.message || copy.genericError);
+        setBusy(false);
+        return;
+      }
+      const token =
+        result.data && typeof result.data === "object" && "token" in result.data
+          ? (result.data as { token?: string }).token
+          : null;
+      if (token) {
+        setBearerToken(token);
+      }
+      setOpen(false);
+      window.location.reload();
+    } catch (err) {
+      setBusy(false);
+      setError(err instanceof Error ? err.message : copy.genericError);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -156,7 +194,7 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
                 <h2 id="account-dialog-title" className="font-display text-xl font-bold text-ink">
                   {mode === "signup" ? copy.signUp : copy.signIn}
                 </h2>
-                <p className="mt-0.5 text-xs text-muted">Free Go Server</p>
+                <p className="mt-0.5 text-xs text-muted">Free Go Server · Conta Oficial</p>
               </div>
               <button
                 type="button"
@@ -168,7 +206,7 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
               </button>
             </div>
 
-            {/* Google OAuth Button */}
+            {/* Google OAuth Button - Direct for Free Go Server */}
             <button
               type="button"
               disabled={busy}
@@ -177,18 +215,16 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
                 setError(null);
                 setBusy(true);
                 try {
-                  await signIn("grok-google", { callbackURL: "/" });
-                } catch (err) {
-                  const rawMsg = err instanceof Error ? err.message : "";
-                  if (rawMsg.includes("Pop-up blocked") || rawMsg.includes("pop-up") || rawMsg.includes("Pop-up")) {
-                    setError(
-                      isPortuguese
-                        ? "Pop-up de autenticação bloqueado pelo navegador. Por favor, autorize pop-ups nesta página para entrar com o Google."
-                        : "Sign-in pop-up was blocked by your browser. Please allow pop-ups for this site to sign in with Google."
-                    );
-                  } else if (rawMsg) {
-                    setError(rawMsg);
+                  // Direct Google OAuth on Free Go Server
+                  const res = await authClient.signIn.social({
+                    provider: "google",
+                    callbackURL: "/",
+                  });
+                  if (res?.error) {
+                    setError(copy.googleNotice);
                   }
+                } catch {
+                  setError(copy.googleNotice);
                 } finally {
                   setBusy(false);
                 }
@@ -203,9 +239,19 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
               <span>{copy.google}</span>
             </button>
 
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void quickGuest()}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-paper-2/60 px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-pine hover:bg-pine/5 hover:text-pine disabled:opacity-60"
+            >
+              <span>⚡</span>
+              <span>{copy.guestLogin}</span>
+            </button>
+
             <div className="my-4 flex items-center gap-3 text-xs text-muted">
               <span className="h-px flex-1 bg-line" />
-              <span>{isPortuguese ? "ou" : "or"}</span>
+              <span>{isPortuguese ? "ou com email" : "or with email"}</span>
               <span className="h-px flex-1 bg-line" />
             </div>
 

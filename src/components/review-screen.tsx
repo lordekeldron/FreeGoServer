@@ -6,6 +6,7 @@ import {
   ChevronUp,
   ChevronsLeft,
   ChevronsRight,
+  Cpu,
   Globe,
   Heart,
   RotateCcw,
@@ -15,6 +16,7 @@ import {
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AccountButton, UserButton } from "@/lib/auth/gates";
 import { Goban } from "@/components/goban";
+import { KatagoUpdatesModal } from "@/components/katago-updates-modal";
 import { translations, type Language } from "@/lib/i18n";
 import { GRADES, type GradeId } from "@/review/quality";
 import { EMPTY_19, SAMPLES } from "@/review/samples";
@@ -101,6 +103,9 @@ export function ReviewScreen() {
   const [showTerritory, setShowTerritory] = useState(true);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<number | null>(null);
   const [pinnedSuggestion, setPinnedSuggestion] = useState<number | null>(null);
+  const [katagoModalOpen, setKatagoModalOpen] = useState(false);
+  const [activePresetId, setActivePresetId] = useState("balanced");
+  const [activeHumanRank, setActiveHumanRank] = useState("rank_1d");
   const [dragging, setDragging] = useState(false);
   const [chartReady, setChartReady] = useState(false);
 
@@ -268,15 +273,32 @@ export function ReviewScreen() {
               <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 {t.siteTitle}
               </h1>
-              <span className="rounded-md border border-line bg-paper-2 px-2 py-0.5 text-[11px] font-medium tracking-wide text-ink-soft uppercase">
-                AI KataGo
-              </span>
+              <button
+                type="button"
+                onClick={() => setKatagoModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-line bg-paper-2 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-ink-soft uppercase hover:border-pine hover:bg-pine/5 hover:text-pine transition-colors cursor-pointer"
+                title={lang === "pt" ? "Ver atualizações oficiais do KataGo e configurações" : "View official KataGo updates & settings"}
+              >
+                <Cpu className="size-3 text-pine" />
+                <span>KataGo v1.18.1</span>
+              </button>
             </div>
             <p className="text-xs text-muted">{t.siteTagline}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* KataGo Updates button */}
+          <button
+            type="button"
+            onClick={() => setKatagoModalOpen(true)}
+            className="btn-quiet flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sm:text-sm text-pine border-pine/30 hover:border-pine hover:bg-pine/5"
+            title={lang === "pt" ? "Ver todas as atualizações do KataGo (lightvector/katago)" : "View all KataGo updates (lightvector/katago)"}
+          >
+            <Cpu className="size-4 text-pine" aria-hidden="true" />
+            <span>{lang === "pt" ? "Atualizações KataGo" : "KataGo Updates"}</span>
+          </button>
+
           <AccountButton language={lang} />
           <UserButton language={lang} />
 
@@ -965,6 +987,21 @@ export function ReviewScreen() {
           <p className="px-1 text-[11px] leading-relaxed text-muted">{t.engineCredits}</p>
         </aside>
       </main>
+
+      <KatagoUpdatesModal
+        isOpen={katagoModalOpen}
+        onClose={() => setKatagoModalOpen(false)}
+        language={lang}
+        currentPresetId={activePresetId}
+        onSelectPreset={(preset) => {
+          setActivePresetId(preset.id);
+          if (preset.humanSlProfile) {
+            setActiveHumanRank(preset.humanSlProfile);
+          }
+        }}
+        currentHumanRank={activeHumanRank}
+        onSelectHumanRank={(rank) => setActiveHumanRank(rank)}
+      />
     </div>
   );
 }
