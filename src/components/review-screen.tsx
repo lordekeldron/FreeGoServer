@@ -19,6 +19,7 @@ import { AccountButton, UserButton } from "@/lib/auth/gates";
 import { Goban } from "@/components/goban";
 import { KatagoUpdatesModal } from "@/components/katago-updates-modal";
 import { PlayLobby } from "@/components/play-lobby";
+import { KatagoGame } from "@/components/katago-game";
 import { translations, type Language } from "@/lib/i18n";
 import { GRADES, type GradeId } from "@/review/quality";
 import { EMPTY_19, SAMPLES } from "@/review/samples";
@@ -107,6 +108,7 @@ export function ReviewScreen() {
   const [pinnedSuggestion, setPinnedSuggestion] = useState<number | null>(null);
   const [katagoModalOpen, setKatagoModalOpen] = useState(false);
   const [playLobbyOpen, setPlayLobbyOpen] = useState(false);
+  const [katagoGameOpen, setKatagoGameOpen] = useState(false);
   const [activePresetId, setActivePresetId] = useState("balanced");
   const [activeHumanRank, setActiveHumanRank] = useState("rank_1d");
   const [dragging, setDragging] = useState(false);
@@ -242,6 +244,10 @@ export function ReviewScreen() {
     return <PlayLobby language={lang} onBack={() => setPlayLobbyOpen(false)} />;
   }
 
+  if (katagoGameOpen) {
+    return <KatagoGame language={lang} onBack={() => setKatagoGameOpen(false)} />;
+  }
+
   return (
     <div
       className={`theme-${theme} min-h-screen bg-paper text-ink`}
@@ -295,6 +301,15 @@ export function ReviewScreen() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setKatagoGameOpen(true)}
+            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sm:text-sm"
+          >
+            <Cpu className="size-4" aria-hidden="true" />
+            <span>{lang === "pt" ? "Jogar contra KataGo" : "Play KataGo"}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setPlayLobbyOpen(true)}
