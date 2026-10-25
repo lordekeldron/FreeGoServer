@@ -219,6 +219,11 @@ export function AccountButton({ language = "en" }: { language?: "en" | "pt" }) {
               className="mt-5 flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-paper-2 disabled:opacity-60"
               onClick={async () => {
                 setError(null);
+                const hasGoogleAuth = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+                if (!hasGoogleAuth) {
+                  setError(copy.googleNotice);
+                  return;
+                }
                 setBusy(true);
                 try {
                   // Direct Google OAuth on Free Go Server
