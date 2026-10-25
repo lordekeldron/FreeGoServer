@@ -58,6 +58,12 @@ export const translations = {
     clickToFilter: "Loss is advantage drop in points. Click numbers or chevrons below to navigate through moves.",
     noMovesInGame: "No moves played yet. Click on the board to start placing stones.",
     engineCredits: "KataGo engine g170-b6c96 model via TensorFlow.js WebAssembly. Fast and private in-browser analysis.",
+    exploringVariation: "Exploring Variation",
+    backToMainGame: "Back to Main Game",
+    variationMove: "Variation Move",
+    explore: "Explore",
+    exploreSequence: "Sequence",
+    variationMoveDesc: "{player} played {label} in exploratory variation (from move #{rootPly}).",
   },
   pt: {
     siteTitle: "Free Go Server",
@@ -116,6 +122,12 @@ export const translations = {
     clickToFilter: "A perda é a queda da vantagem em pontos. Clique nos números ou setas para navegar rapidamente pelos lances.",
     noMovesInGame: "Nenhum lance jogado ainda. Clique no tabuleiro para começar a jogar pedras.",
     engineCredits: "Motor KataGo, rede compacta g170-b6c96, executada com TensorFlow.js WebAssembly. Análise rápida e privada.",
+    exploringVariation: "Explorando Variante",
+    backToMainGame: "Voltar para a Partida Principal",
+    variationMove: "Lance da Variante",
+    explore: "Explorar",
+    exploreSequence: "Sequência",
+    variationMoveDesc: "{player} jogou {label} na variante exploratória (a partir do lance #{rootPly}).",
   },
 } as const;
 

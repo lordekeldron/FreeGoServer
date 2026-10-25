@@ -3,12 +3,20 @@ import { accuracyFromLosses, gradeFor, pointsLostForMove, type GradeId } from "@
 import { EMPTY_19, emptyGameSgf } from "@/review/samples";
 import {
   appendMoveToGame,
+  createChildNode,
   parseAndReplay,
   parseGtp,
   sideToPlay,
   type Color,
+  type GameNode,
   type ParsedGame,
 } from "@/review/sgf";
+
+export type VariationState = {
+  rootPly: number;
+  nodes: GameNode[];
+  cursor: number;
+};
 
 export type PositionEval = {
   winRate: number;
@@ -78,7 +86,50 @@ function historyTo(game: ParsedGame, index: number) {
   return moves;
 }
 
-function positionQuery(game: ParsedGame, index: number) {
+function positionQuery(game: ParsedGame, index: number, variation?: VariationState | null) {
+  if (variation) {
+    const node = variation.nodes[variation.cursor]!;
+    const side = sideToPlay(node, game.nodes[0]!);
+    const moves: Array<{ x: number; y: number; player: "black" | "white" }> = [];
+    for (let i = 1; i <= variation.rootPly; i += 1) {
+      const n = game.nodes[i]!;
+      moves.push({
+        x: n.x ?? -1,
+        y: n.y ?? -1,
+        player: n.player === "W" ? "white" : "black",
+      });
+    }
+    for (let i = 1; i <= variation.cursor; i += 1) {
+      const n = variation.nodes[i]!;
+      moves.push({
+        x: n.x ?? -1,
+        y: n.y ?? -1,
+        player: n.player === "W" ? "white" : "black",
+      });
+    }
+    const prevNode =
+      variation.cursor > 0
+        ? variation.nodes[variation.cursor - 1]
+        : variation.rootPly > 0
+          ? game.nodes[variation.rootPly - 1]
+          : undefined;
+    const prevPrevNode =
+      variation.cursor > 1
+        ? variation.nodes[variation.cursor - 2]
+        : variation.cursor === 1 && variation.rootPly > 0
+          ? game.nodes[variation.rootPly - 1]
+          : undefined;
+
+    return {
+      board: toState(node.board),
+      previousBoard: prevNode ? toState(prevNode.board) : undefined,
+      previousPreviousBoard: prevPrevNode ? toState(prevPrevNode.board) : undefined,
+      currentPlayer: side === "B" ? ("black" as const) : ("white" as const),
+      moveHistory: moves,
+      komi: game.komi,
+    };
+  }
+
   const node = game.nodes[index]!;
   const side = sideToPlay(node, game.nodes[0]!);
   return {
@@ -157,10 +208,13 @@ export function useReview(initialSgf: string = EMPTY_19) {
   const [suggesting, setSuggesting] = useState(false);
   const [ticket, setTicket] = useState(0);
 
+  const [variation, setVariation] = useState<VariationState | null>(null);
+
   function loadSgf(text: string, name: string) {
     try {
       const next = parseAndReplay(text);
       setGame(next);
+      setVariation(null);
       setCursor(0);
       setSourceName(name);
       setParseError(null);
@@ -184,18 +238,43 @@ export function useReview(initialSgf: string = EMPTY_19) {
   function resetGame(size: number = 19) {
     const komi = size === 9 ? 5.5 : 6.5;
     const text = emptyGameSgf(size, komi);
+    setVariation(null);
     loadSgf(text, `${size}×${size}`);
   }
 
   function playMove(x: number, y: number) {
     try {
-      const nextGame = appendMoveToGame(game, { x, y }, cursor);
-      setGame(nextGame);
-      setCursor(nextGame.nodes.length - 1);
-      setParseError(null);
-      setPhase("loading");
-      setProgress(0);
-      setTicket((value) => value + 1);
+      if (variation) {
+        const baseIndex = Math.min(variation.cursor, variation.nodes.length - 1);
+        const parentNode = variation.nodes[baseIndex]!;
+        const nextPly = baseIndex + 1;
+        const newNode = createChildNode(parentNode, game.nodes[0]!, game.size, { x, y }, nextPly);
+        const nextNodes = [...variation.nodes.slice(0, baseIndex + 1), newNode];
+        setVariation({
+          ...variation,
+          nodes: nextNodes,
+          cursor: nextNodes.length - 1,
+        });
+        setParseError(null);
+      } else if (game.nodes.length > 1) {
+        const rootIndex = Math.min(cursor, game.nodes.length - 1);
+        const rootNode = game.nodes[rootIndex]!;
+        const newNode = createChildNode(rootNode, game.nodes[0]!, game.size, { x, y }, 1);
+        setVariation({
+          rootPly: rootIndex,
+          nodes: [rootNode, newNode],
+          cursor: 1,
+        });
+        setParseError(null);
+      } else {
+        const nextGame = appendMoveToGame(game, { x, y }, cursor);
+        setGame(nextGame);
+        setCursor(nextGame.nodes.length - 1);
+        setParseError(null);
+        setPhase("loading");
+        setProgress(0);
+        setTicket((value) => value + 1);
+      }
     } catch (error) {
       setParseError(error instanceof Error ? error.message : "Illegal move.");
     }
@@ -203,16 +282,110 @@ export function useReview(initialSgf: string = EMPTY_19) {
 
   function playPass() {
     try {
-      const nextGame = appendMoveToGame(game, "pass", cursor);
-      setGame(nextGame);
-      setCursor(nextGame.nodes.length - 1);
-      setParseError(null);
-      setPhase("loading");
-      setProgress(0);
-      setTicket((value) => value + 1);
+      if (variation) {
+        const baseIndex = Math.min(variation.cursor, variation.nodes.length - 1);
+        const parentNode = variation.nodes[baseIndex]!;
+        const nextPly = baseIndex + 1;
+        const newNode = createChildNode(parentNode, game.nodes[0]!, game.size, "pass", nextPly);
+        const nextNodes = [...variation.nodes.slice(0, baseIndex + 1), newNode];
+        setVariation({
+          ...variation,
+          nodes: nextNodes,
+          cursor: nextNodes.length - 1,
+        });
+        setParseError(null);
+      } else if (game.nodes.length > 1) {
+        const rootIndex = Math.min(cursor, game.nodes.length - 1);
+        const rootNode = game.nodes[rootIndex]!;
+        const newNode = createChildNode(rootNode, game.nodes[0]!, game.size, "pass", 1);
+        setVariation({
+          rootPly: rootIndex,
+          nodes: [rootNode, newNode],
+          cursor: 1,
+        });
+        setParseError(null);
+      } else {
+        const nextGame = appendMoveToGame(game, "pass", cursor);
+        setGame(nextGame);
+        setCursor(nextGame.nodes.length - 1);
+        setParseError(null);
+        setPhase("loading");
+        setProgress(0);
+        setTicket((value) => value + 1);
+      }
     } catch (error) {
       setParseError(error instanceof Error ? error.message : "Illegal pass.");
     }
+  }
+
+  function exitVariation() {
+    if (variation) {
+      setCursor(variation.rootPly);
+      setVariation(null);
+    }
+  }
+
+  function setVariationCursor(action: number | ((prev: number) => number)) {
+    if (!variation) return;
+    setVariation((prev) => {
+      if (!prev) return null;
+      const nextVal = typeof action === "function" ? action(prev.cursor) : action;
+      const clamped = Math.max(0, Math.min(prev.nodes.length - 1, nextVal));
+      return { ...prev, cursor: clamped };
+    });
+  }
+
+  function exploreSuggestion(suggestion: Suggestion) {
+    if (suggestion.pass) {
+      playPass();
+    } else {
+      playMove(suggestion.x, suggestion.y);
+    }
+  }
+
+  function explorePv(pv: Array<{ x: number; y: number; player: Color }>) {
+    if (!pv || pv.length === 0) return;
+    try {
+      let rootPly: number;
+      let baseNodes: GameNode[];
+      if (variation) {
+        rootPly = variation.rootPly;
+        const baseIndex = Math.min(variation.cursor, variation.nodes.length - 1);
+        baseNodes = variation.nodes.slice(0, baseIndex + 1);
+      } else if (game.nodes.length > 1) {
+        rootPly = Math.min(cursor, game.nodes.length - 1);
+        baseNodes = [game.nodes[rootPly]!];
+      } else {
+        rootPly = 0;
+        baseNodes = [game.nodes[0]!];
+      }
+
+      const nextNodes = [...baseNodes];
+      let parent = nextNodes[nextNodes.length - 1]!;
+      for (let i = 0; i < pv.length; i += 1) {
+        const stone = pv[i]!;
+        const nextPly = nextNodes.length;
+        const child = createChildNode(parent, game.nodes[0]!, game.size, { x: stone.x, y: stone.y }, nextPly);
+        nextNodes.push(child);
+        parent = child;
+      }
+
+      setVariation({
+        rootPly,
+        nodes: nextNodes,
+        cursor: nextNodes.length - 1,
+      });
+      setParseError(null);
+    } catch (error) {
+      setParseError(error instanceof Error ? error.message : "Error exploring variation.");
+    }
+  }
+
+  function handleSetCursor(action: number | ((prev: number) => number)) {
+    if (variation) {
+      setVariation(null);
+    }
+    setCursor(action);
   }
 
   useEffect(() => {
@@ -291,9 +464,11 @@ export function useReview(initialSgf: string = EMPTY_19) {
     (async () => {
       try {
         const { client } = await engineClient();
-        const node = game.nodes[cursor]!;
-        const side = sideToPlay(node, game.nodes[0]!);
-        const query = positionQuery(game, cursor);
+        const currentNode = variation
+          ? variation.nodes[variation.cursor] ?? variation.nodes[0]!
+          : game.nodes[cursor]!;
+        const side = sideToPlay(currentNode, game.nodes[0]!);
+        const query = positionQuery(game, cursor, variation);
         const analysis = await client.analyze({
           signal: bag.signal,
           analysisGroup: "interactive",
@@ -319,7 +494,7 @@ export function useReview(initialSgf: string = EMPTY_19) {
 
         // Requirement 8: On 9x9 board at opening (move 0, black to play),
         // E5 (Tengen, x:4, y:4) is the best move (Move A), and other alternatives (B, C, D, E) are good moves.
-        if (game.size === 9 && cursor === 0 && side === "B") {
+        if (game.size === 9 && !variation && cursor === 0 && side === "B") {
           const e5Move = rawMoves.find((m) => m.x === 4 && m.y === 4);
           const others = rawMoves.filter((m) => !(m.x === 4 && m.y === 4));
           const adjustedOthers = others.slice(0, 4).map((m, idx) => ({
@@ -374,7 +549,7 @@ export function useReview(initialSgf: string = EMPTY_19) {
       cancelled = true;
       bag.abort();
     };
-  }, [phase, cursor, game, ticket]);
+  }, [phase, cursor, game, ticket, variation]);
 
   const grades = useMemo(() => {
     return game.nodes.map((node, index) => {
@@ -424,10 +599,29 @@ export function useReview(initialSgf: string = EMPTY_19) {
 
   const safeCursor = Math.min(cursor, game.nodes.length - 1);
 
+  const activeNode = variation
+    ? variation.nodes[variation.cursor] ?? variation.nodes[0]!
+    : game.nodes[safeCursor] ?? game.nodes[0]!;
+
+  const activeGame = useMemo(() => {
+    if (!variation) return game;
+    return {
+      ...game,
+      nodes: variation.nodes,
+    };
+  }, [game, variation]);
+
   return {
     game,
+    activeGame,
+    activeNode,
     cursor: safeCursor,
-    setCursor,
+    setCursor: handleSetCursor,
+    variation,
+    exitVariation,
+    setVariationCursor,
+    exploreSuggestion,
+    explorePv,
     sourceName,
     parseError,
     clearParseError: () => setParseError(null),

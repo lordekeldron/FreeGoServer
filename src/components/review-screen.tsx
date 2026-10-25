@@ -119,7 +119,7 @@ export function ReviewScreen() {
   useEffect(() => {
     setHoveredSuggestion(null);
     setPinnedSuggestion(null);
-  }, [review.cursor, review.game]);
+  }, [review.cursor, review.game, review.variation]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -127,26 +127,55 @@ export function ReviewScreen() {
       if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT")) return;
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        review.setCursor((value) => Math.min(review.game.nodes.length - 1, value + 1));
+        if (review.variation) {
+          review.setVariationCursor((value) =>
+            Math.min(review.variation!.nodes.length - 1, value + 1),
+          );
+        } else {
+          review.setCursor((value) => Math.min(review.game.nodes.length - 1, value + 1));
+        }
       } else if (event.key === "ArrowLeft") {
         event.preventDefault();
-        review.setCursor((value) => Math.max(0, value - 1));
+        if (review.variation) {
+          review.setVariationCursor((value) => Math.max(0, value - 1));
+        } else {
+          review.setCursor((value) => Math.max(0, value - 1));
+        }
       } else if (event.key === "Home") {
-        review.setCursor(0);
+        if (review.variation) {
+          review.setVariationCursor(0);
+        } else {
+          review.setCursor(0);
+        }
       } else if (event.key === "End") {
-        review.setCursor(review.game.nodes.length - 1);
+        if (review.variation) {
+          review.setVariationCursor(review.variation.nodes.length - 1);
+        } else {
+          review.setCursor(review.game.nodes.length - 1);
+        }
+      } else if (event.key === "Escape") {
+        if (review.variation) {
+          review.exitVariation();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [review]);
 
-  const node = review.game.nodes[review.cursor] ?? review.game.nodes[0]!;
-  const grade = review.grades[review.cursor] ?? null;
+  const node = review.activeNode;
+  const grade = !review.variation ? review.grades[review.cursor] ?? null : null;
   const side = sideToPlay(node, review.game.nodes[0]!);
   const activeId = hoveredSuggestion ?? pinnedSuggestion;
   const active = review.suggestions.find((suggestion) => suggestion.id === activeId) ?? null;
   const ghosts = active?.pv ?? [];
+
+  const displayedGradeIds = useMemo(() => {
+    if (!review.variation) return review.grades.map((row) => row?.gradeId ?? null);
+    return review.variation.nodes.map((_, i) =>
+      i === 0 ? review.grades[review.variation!.rootPly]?.gradeId ?? null : null,
+    );
+  }, [review.variation, review.grades]);
 
   // Group moves by player and grade for the breakdown table
   const breakdown = useMemo(() => {
@@ -572,20 +601,52 @@ export function ReviewScreen() {
               </p>
             ) : null}
 
+            {/* Variation Exploration Banner */}
+            {review.variation ? (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-pine/40 bg-pine/10 p-2.5 text-xs shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex size-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pine opacity-75" />
+                    <span className="relative inline-flex size-2.5 rounded-full bg-pine" />
+                  </span>
+                  <span className="font-semibold text-pine">
+                    {lang === "pt"
+                      ? `Explorando Variante: lance +${review.variation.cursor} (a partir do lance #${review.variation.rootPly} da partida original)`
+                      : `Exploring Variation: move +${review.variation.cursor} (from move #${review.variation.rootPly} of original game)`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => review.exitVariation()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-pine px-3 py-1 font-semibold text-paper shadow-xs hover:bg-pine/90 transition-colors cursor-pointer"
+                  title={lang === "pt" ? "Retornar à partida principal do SGF mantendo todos os erros e avaliações intactos" : "Return to main SGF game keeping all evaluations and blunder reports intact"}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>{lang === "pt" ? "Voltar para a Partida Principal" : "Back to Main Game"}</span>
+                </button>
+              </div>
+            ) : null}
+
             {/* Goban Board */}
             <div className="mx-auto w-full max-w-[43rem]">
               <Goban
-                game={review.game}
+                game={review.activeGame}
                 language={lang}
-                cursor={review.cursor}
-                gradeIds={review.grades.map((row) => row?.gradeId ?? null)}
+                cursor={review.variation ? review.variation.cursor : review.cursor}
+                gradeIds={displayedGradeIds}
                 suggestions={review.suggestions}
                 ownership={review.ownership}
                 showMarks={showMarks}
                 showTerritory={showTerritory && review.ownership != null}
                 ghosts={ghosts}
                 activeSuggestion={activeId}
-                onJump={review.setCursor}
+                onJump={(ply) => {
+                  if (review.variation) {
+                    review.setVariationCursor(ply);
+                  } else {
+                    review.setCursor(ply);
+                  }
+                }}
                 onHoverSuggestion={setHoveredSuggestion}
                 onPlayPoint={(x, y) => review.playMove(x, y)}
               />
@@ -593,33 +654,71 @@ export function ReviewScreen() {
 
             {/* Board Navigation Controls */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <IconButton label={t.start} onClick={() => review.setCursor(0)}>
+              <IconButton
+                label={t.start}
+                onClick={() => {
+                  if (review.variation) {
+                    review.setVariationCursor(0);
+                  } else {
+                    review.setCursor(0);
+                  }
+                }}
+              >
                 <ChevronsLeft className="size-5" />
               </IconButton>
               <IconButton
                 label={t.prevMove}
-                onClick={() => review.setCursor((value) => Math.max(0, value - 1))}
+                onClick={() => {
+                  if (review.variation) {
+                    review.setVariationCursor((value) => Math.max(0, value - 1));
+                  } else {
+                    review.setCursor((value) => Math.max(0, value - 1));
+                  }
+                }}
               >
                 <ChevronLeft className="size-5" />
               </IconButton>
 
-              <div className="flex min-w-28 items-center justify-center rounded-lg border border-line bg-paper px-3 py-1.5 text-center text-sm font-semibold tabular-nums text-ink">
-                {review.cursor} / {Math.max(0, review.game.nodes.length - 1)}
+              <div className="flex min-w-36 items-center justify-center rounded-lg border border-line bg-paper px-3 py-1.5 text-center text-sm font-semibold tabular-nums text-ink">
+                {review.variation ? (
+                  <span className="flex items-center gap-1 text-pine">
+                    <span className="text-xs font-normal text-muted">Var</span>
+                    <span>+{review.variation.cursor}</span>
+                    <span className="text-xs font-normal text-muted">/ {review.variation.nodes.length - 1}</span>
+                    <span className="text-[11px] font-normal text-muted">(#{review.variation.rootPly})</span>
+                  </span>
+                ) : (
+                  <span>
+                    {review.cursor} / {Math.max(0, review.game.nodes.length - 1)}
+                  </span>
+                )}
               </div>
 
               <IconButton
                 label={t.nextMove}
-                onClick={() =>
-                  review.setCursor((value) =>
-                    Math.min(review.game.nodes.length - 1, value + 1),
-                  )
-                }
+                onClick={() => {
+                  if (review.variation) {
+                    review.setVariationCursor((value) =>
+                      Math.min(review.variation!.nodes.length - 1, value + 1),
+                    );
+                  } else {
+                    review.setCursor((value) =>
+                      Math.min(review.game.nodes.length - 1, value + 1),
+                    );
+                  }
+                }}
               >
                 <ChevronRight className="size-5" />
               </IconButton>
               <IconButton
                 label={t.end}
-                onClick={() => review.setCursor(review.game.nodes.length - 1)}
+                onClick={() => {
+                  if (review.variation) {
+                    review.setVariationCursor(review.variation.nodes.length - 1);
+                  } else {
+                    review.setCursor(review.game.nodes.length - 1);
+                  }
+                }}
               >
                 <ChevronsRight className="size-5" />
               </IconButton>
@@ -632,6 +731,18 @@ export function ReviewScreen() {
               >
                 {t.pass}
               </button>
+
+              {review.variation ? (
+                <button
+                  type="button"
+                  onClick={() => review.exitVariation()}
+                  className="btn-primary ml-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold"
+                  title={lang === "pt" ? "Voltar para o lance original da partida" : "Return to the original move"}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>{lang === "pt" ? "Voltar à Partida" : "Back to Main Game"}</span>
+                </button>
+              ) : null}
             </div>
 
             {/* Engine status indicator & marks/territory toggles */}
@@ -941,18 +1052,44 @@ export function ReviewScreen() {
           <div className="rounded-2xl border border-line bg-paper p-4 shadow-xs">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-base font-semibold leading-tight text-ink">
-                {t.thisMove}
+                {review.variation
+                  ? (lang === "pt" ? "Lance da Variante" : "Variation Move")
+                  : t.thisMove}
               </h2>
               {node.player ? (
                 <span className="font-mono text-xs font-semibold text-muted">
-                  #{review.cursor} {node.label}
+                  {review.variation
+                    ? `Var +${review.variation.cursor}`
+                    : `#${review.cursor}`}{" "}
+                  {node.label}
                 </span>
               ) : null}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-              {describeMoveText(node.player, node.label, grade, review.evals[review.cursor])}
+              {review.variation
+                ? (lang === "pt"
+                    ? `${getPlayerName(node.player ?? "B")} jogou ${node.label} na variante exploratória (ramificada a partir do lance #${review.variation.rootPly}).`
+                    : `${getPlayerName(node.player ?? "B")} played ${node.label} in exploratory variation (from move #${review.variation.rootPly}).`)
+                : describeMoveText(node.player, node.label, grade, review.evals[review.cursor])}
             </p>
-            {grade ? (
+            {review.variation ? (
+              <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-2 text-xs">
+                <span className="text-muted">
+                  {lang === "pt"
+                    ? "Partida principal preservada intacta"
+                    : "Main game preserved intact"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => review.exitVariation()}
+                  className="inline-flex items-center gap-1 font-semibold text-pine hover:underline cursor-pointer"
+                >
+                  <RotateCcw className="size-3" />
+                  <span>{lang === "pt" ? "Voltar à Partida" : "Back to Main Game"}</span>
+                </button>
+              </div>
+            ) : null}
+            {grade && !review.variation ? (
               <p className={`mt-2 text-xs font-semibold ${GRADE_TEXT_CLASS[grade.gradeId]}`}>
                 {lang === "pt"
                   ? GRADES.find((item) => item.id === grade.gradeId)?.label
@@ -960,7 +1097,7 @@ export function ReviewScreen() {
                 · −{formatPoints(grade.pointsLost, lang)} {lang === "pt" ? "pontos" : "points"}
               </p>
             ) : null}
-            {review.evals[review.cursor] ? (
+            {!review.variation && review.evals[review.cursor] ? (
               <p className="mt-1 text-xs tabular-nums text-muted">
                 {leadSentence(review.evals[review.cursor]!.lead)} · {t.black}{" "}
                 {Math.round(review.evals[review.cursor]!.winRate * 100)}%
@@ -1013,6 +1150,8 @@ export function ReviewScreen() {
                         value === suggestion.id ? null : suggestion.id,
                       )
                     }
+                    onExplore={() => review.exploreSuggestion(suggestion)}
+                    onExplorePv={() => review.explorePv(suggestion.pv)}
                   />
                 ))
               )}
@@ -1090,6 +1229,8 @@ function SuggestionRow({
   onEnter,
   onLeave,
   onClick,
+  onExplore,
+  onExplorePv,
 }: {
   suggestion: Suggestion;
   active: boolean;
@@ -1098,10 +1239,12 @@ function SuggestionRow({
   onEnter: () => void;
   onLeave: () => void;
   onClick: () => void;
+  onExplore?: () => void;
+  onExplorePv?: () => void;
 }) {
   const grade = GRADES.find((item) => suggestion.pointsLost < item.max) ?? GRADES[GRADES.length - 1]!;
   return (
-    <li>
+    <li className="flex items-center gap-1">
       <button
         type="button"
         onMouseEnter={onEnter}
@@ -1109,7 +1252,7 @@ function SuggestionRow({
         onFocus={onEnter}
         onBlur={onLeave}
         onClick={onClick}
-        className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-xs transition-colors ${
+        className={`flex min-h-10 flex-1 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-xs transition-colors ${
           active ? "border-line bg-paper-2" : "hover:bg-paper-2/70"
         }`}
       >
@@ -1128,6 +1271,44 @@ function SuggestionRow({
             : `−${formatPoints(suggestion.pointsLost, lang)}`}
         </span>
       </button>
+
+      <div className="flex shrink-0 items-center gap-1">
+        {onExplore ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onExplore();
+            }}
+            className="inline-flex items-center rounded-lg border border-pine/30 bg-paper px-2 py-1 text-[11px] font-semibold text-pine hover:border-pine hover:bg-pine/10 transition-colors cursor-pointer"
+            title={
+              lang === "pt"
+                ? `Jogar ${suggestion.label} como variante de exploração`
+                : `Play ${suggestion.label} as exploration variation`
+            }
+          >
+            <span>{lang === "pt" ? "Explorar" : "Explore"}</span>
+          </button>
+        ) : null}
+
+        {onExplorePv && suggestion.pv && suggestion.pv.length > 1 ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onExplorePv();
+            }}
+            className="inline-flex items-center rounded-lg border border-line bg-paper px-1.5 py-1 text-[10px] font-medium text-ink-soft hover:border-pine hover:text-pine transition-colors cursor-pointer"
+            title={
+              lang === "pt"
+                ? `Explorar sequência de ${suggestion.pv.length} lances da IA`
+                : `Explore full ${suggestion.pv.length}-move sequence`
+            }
+          >
+            <span>{lang === "pt" ? "Seq." : "Seq."}</span>
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }

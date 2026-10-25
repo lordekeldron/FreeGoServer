@@ -383,6 +383,37 @@ export function sgfFromMoves(args: {
   return `(;${props.join("")}${body})`;
 }
 
+export function createChildNode(
+  parentNode: GameNode,
+  rootNode: GameNode,
+  size: number,
+  point: { x: number; y: number } | "pass",
+  plyNumber: number,
+): GameNode {
+  const player = sideToPlay(parentNode, rootNode);
+  const nextBoard = cloneBoard(parentNode.board);
+  const nextOrigins = cloneOrigins(parentNode.origins);
+  let captured = 0;
+
+  if (point !== "pass") {
+    captured = playPoint(nextBoard, nextOrigins, point.x, point.y, player === "B" ? 1 : 2, plyNumber);
+  }
+
+  return {
+    ply: plyNumber,
+    player,
+    x: point === "pass" ? null : point.x,
+    y: point === "pass" ? null : point.y,
+    pass: point === "pass",
+    label: point === "pass" ? "pass" : coordLabel(point.x, point.y, size),
+    comment: "",
+    board: nextBoard,
+    origins: nextOrigins,
+    capturedBlack: parentNode.capturedBlack + (player === "W" ? captured : 0),
+    capturedWhite: parentNode.capturedWhite + (player === "B" ? captured : 0),
+  };
+}
+
 export function appendMoveToGame(
   game: ParsedGame,
   point: { x: number; y: number } | "pass",
@@ -390,29 +421,8 @@ export function appendMoveToGame(
 ): ParsedGame {
   const baseIndex = fromPly !== undefined ? Math.min(fromPly, game.nodes.length - 1) : game.nodes.length - 1;
   const lastNode = game.nodes[baseIndex]!;
-  const player = sideToPlay(lastNode, game.nodes[0]!);
-  const nextBoard = cloneBoard(lastNode.board);
-  const nextOrigins = cloneOrigins(lastNode.origins);
   const newPly = baseIndex + 1;
-  let captured = 0;
-
-  if (point !== "pass") {
-    captured = playPoint(nextBoard, nextOrigins, point.x, point.y, player === "B" ? 1 : 2, newPly);
-  }
-
-  const newNode: GameNode = {
-    ply: newPly,
-    player,
-    x: point === "pass" ? null : point.x,
-    y: point === "pass" ? null : point.y,
-    pass: point === "pass",
-    label: point === "pass" ? "pass" : coordLabel(point.x, point.y, game.size),
-    comment: "",
-    board: nextBoard,
-    origins: nextOrigins,
-    capturedBlack: lastNode.capturedBlack + (player === "W" ? captured : 0),
-    capturedWhite: lastNode.capturedWhite + (player === "B" ? captured : 0),
-  };
+  const newNode = createChildNode(lastNode, game.nodes[0]!, game.size, point, newPly);
 
   const nextNodes = [...game.nodes.slice(0, baseIndex + 1), newNode];
 
