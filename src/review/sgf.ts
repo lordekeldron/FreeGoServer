@@ -301,15 +301,11 @@ export function parseAndReplay(source: string): ParsedGame {
       if (point !== "pass") {
         captured = playPoint(next, nextOrigins, point.x, point.y, player === "B" ? 1 : 2, ply);
         const afterKey = boardKey(next, toPlayAfter);
-        if (seen.has(afterKey)) {
-          throw new Error(`Lance ilegal em ${coordLabel(point.x, point.y, size)}: ko ou repetição.`);
-        }
         for (let y = 0; y < size; y += 1) board[y] = next[y]!.slice();
         for (let y = 0; y < size; y += 1) origins[y] = nextOrigins[y]!.slice();
         seen.add(afterKey);
       } else {
         const afterKey = boardKey(board, toPlayAfter);
-        if (seen.has(afterKey)) throw new Error("Passe ilegal: essa posição já aconteceu.");
         seen.add(afterKey);
       }
       if (player === "B") capturedWhite += captured;
