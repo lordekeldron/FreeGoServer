@@ -90,11 +90,47 @@ export function gradeFor(pointsLost: number): Grade {
   return GRADES[GRADES.length - 1]!;
 }
 
-/** Points the mover gave away, from Black's score lead before and after the move. */
-export function pointsLostForMove(prevLead: number, nextLead: number, player: "B" | "W"): number {
-  const loss = player === "B" ? prevLead - nextLead : nextLead - prevLead;
+/** Points the mover gave away, from Black's score lead and win rate before and after the move. */
+export function pointsLostForMove(
+  prevLead: number,
+  nextLead: number,
+  player: "B" | "W",
+  prevWinRate?: number,
+  nextWinRate?: number,
+): number {
+  let loss = player === "B" ? prevLead - nextLead : nextLead - prevLead;
   if (!Number.isFinite(loss)) return 0;
-  return Math.max(0, loss);
+  loss = Math.max(0, loss);
+
+  if (
+    prevWinRate !== undefined &&
+    nextWinRate !== undefined &&
+    Number.isFinite(prevWinRate) &&
+    Number.isFinite(nextWinRate)
+  ) {
+    // Win rate drop from the active player's perspective (0 to 1)
+    const winRateDrop = player === "B" ? prevWinRate - nextWinRate : nextWinRate - prevWinRate;
+
+    // If the player maintained or improved their win rate (drop <= 0.005),
+    // they did not lose any real advantage. Any drop in score lead is raw neural-net valuation noise.
+    if (winRateDrop <= 0.005) {
+      return 0;
+    }
+
+    // If win rate drop is tiny (< 1.5%), the move cannot be an inaccuracy or mistake.
+    // Cap loss to Excellent threshold (< 0.35).
+    if (winRateDrop < 0.015) {
+      loss = Math.min(loss, 0.25);
+    } else if (winRateDrop < 0.035) {
+      // Win rate drop under 3.5% cannot be an inaccuracy (cap to Great, < 1.0 pt).
+      loss = Math.min(loss, 0.95);
+    } else if (winRateDrop < 0.065) {
+      // Win rate drop under 6.5% cannot be a blunder (cap to Good, < 2.2 pts).
+      loss = Math.min(loss, 2.1);
+    }
+  }
+
+  return loss;
 }
 
 /** 100 keeps every point; each lost point multiplies the move by 0.82. */

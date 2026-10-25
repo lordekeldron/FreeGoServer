@@ -1094,7 +1094,9 @@ export function ReviewScreen() {
                 {lang === "pt"
                   ? GRADES.find((item) => item.id === grade.gradeId)?.label
                   : GRADES.find((item) => item.id === grade.gradeId)?.labelEn}{" "}
-                · −{formatPoints(grade.pointsLost, lang)} {lang === "pt" ? "pontos" : "points"}
+                {grade.pointsLost < 0.05
+                  ? `· ${lang === "pt" ? "Melhor lance (0,0 pontos)" : "Best move (0.0 pts)"}`
+                  : `· −${formatPoints(grade.pointsLost, lang)} ${lang === "pt" ? "pontos" : "points"}`}
               </p>
             ) : null}
             {!review.variation && review.evals[review.cursor] ? (

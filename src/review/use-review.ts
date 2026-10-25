@@ -209,12 +209,16 @@ export function useReview(initialSgf: string = EMPTY_19) {
   const [ticket, setTicket] = useState(0);
 
   const [variation, setVariation] = useState<VariationState | null>(null);
+  const [engineRefinements, setEngineRefinements] = useState<Map<number, { pointsLost: number; isBest: boolean }>>(
+    () => new Map(),
+  );
 
   function loadSgf(text: string, name: string) {
     try {
       const next = parseAndReplay(text);
       setGame(next);
       setVariation(null);
+      setEngineRefinements(new Map());
       setCursor(0);
       setSourceName(name);
       setParseError(null);
@@ -239,6 +243,7 @@ export function useReview(initialSgf: string = EMPTY_19) {
     const komi = size === 9 ? 5.5 : 6.5;
     const text = emptyGameSgf(size, komi);
     setVariation(null);
+    setEngineRefinements(new Map());
     loadSgf(text, `${size}×${size}`);
   }
 
@@ -534,6 +539,30 @@ export function useReview(initialSgf: string = EMPTY_19) {
         if (own && own.length === game.size * game.size) setOwnership(Array.from(own));
         else setOwnership(null);
         setSuggesting(false);
+
+        // If analyzing a position on the main game, check if the actual move played on the next turn
+        // was one of KataGo's top recommendations. If it was Move A (or loss < 0.25), it is the best move!
+        if (!variation && cursor + 1 < game.nodes.length) {
+          const nextNode = game.nodes[cursor + 1];
+          if (nextNode) {
+            const matching = rawMoves.find((m) =>
+              nextNode.pass ? m.x < 0 || m.y < 0 : m.x === nextNode.x && m.y === nextNode.y,
+            );
+            if (matching) {
+              const isBest = matching.order === 0 || matching.pointsLost < 0.25;
+              const refinedPointsLost = isBest ? 0 : matching.pointsLost;
+              setEngineRefinements((prev) => {
+                const current = prev.get(cursor + 1);
+                if (current && current.pointsLost <= refinedPointsLost && (!isBest || current.isBest)) {
+                  return prev;
+                }
+                const nextMap = new Map(prev);
+                nextMap.set(cursor + 1, { pointsLost: refinedPointsLost, isBest });
+                return nextMap;
+              });
+            }
+          }
+        }
       } catch (error) {
         const { isCanceled } = await engineClient().catch(() => ({ isCanceled: () => false }));
         if (cancelled || isCanceled(error)) return;
@@ -557,11 +586,21 @@ export function useReview(initialSgf: string = EMPTY_19) {
       const prev = evals[index - 1];
       const curr = evals[index];
       if (!prev || !curr) return null;
-      let lost = pointsLostForMove(prev.lead, curr.lead, node.player);
+      let lost = pointsLostForMove(prev.lead, curr.lead, node.player, prev.winRate, curr.winRate);
 
       // On 9x9 board, Black playing E5 (x:4, y:4) on move 1 is optimal
       if (game.size === 9 && index === 1 && node.player === "B" && node.x === 4 && node.y === 4) {
         lost = 0;
+      }
+
+      // Check if engine search verified this move was the recommended best move or refined its loss
+      const refined = engineRefinements.get(index);
+      if (refined) {
+        if (refined.isBest) {
+          lost = 0;
+        } else {
+          lost = Math.min(lost, refined.pointsLost);
+        }
       }
 
       const grade = gradeFor(lost);
@@ -573,7 +612,7 @@ export function useReview(initialSgf: string = EMPTY_19) {
       };
       return row;
     });
-  }, [game, evals]);
+  }, [game, evals, engineRefinements]);
 
   const summary = useMemo(() => {
     const buckets = { B: [] as number[], W: [] as number[] };
