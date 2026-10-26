@@ -12,11 +12,14 @@ import {
   RotateCcw,
   Sparkles,
   Upload,
+  Users,
 } from "lucide-react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AccountButton, UserButton } from "@/lib/auth/gates";
 import { Goban } from "@/components/goban";
 import { KatagoUpdatesModal } from "@/components/katago-updates-modal";
+import { PlayLobby } from "@/components/play-lobby";
+import { KatagoGame } from "@/components/katago-game";
 import { useKataGoAutoUpdater } from "@/engine/katago/katagoAutoUpdater";
 import { translations, type Language } from "@/lib/i18n";
 import { GRADES, type GradeId } from "@/review/quality";
@@ -105,6 +108,8 @@ export function ReviewScreen() {
   const [hoveredSuggestion, setHoveredSuggestion] = useState<number | null>(null);
   const [pinnedSuggestion, setPinnedSuggestion] = useState<number | null>(null);
   const [katagoModalOpen, setKatagoModalOpen] = useState(false);
+  const [playLobbyOpen, setPlayLobbyOpen] = useState(false);
+  const [katagoGameOpen, setKatagoGameOpen] = useState(false);
   const [activePresetId, setActivePresetId] = useState("balanced");
   const [activeHumanRank, setActiveHumanRank] = useState("rank_1d");
   const katagoUpdater = useKataGoAutoUpdater();
@@ -266,6 +271,14 @@ export function ReviewScreen() {
 
   const isGameEmpty = review.game.nodes.length <= 1;
 
+  if (playLobbyOpen) {
+    return <PlayLobby language={lang} onBack={() => setPlayLobbyOpen(false)} />;
+  }
+
+  if (katagoGameOpen) {
+    return <KatagoGame language={lang} onBack={() => setKatagoGameOpen(false)} />;
+  }
+
   return (
     <div
       className={`theme-${theme} min-h-screen bg-paper text-ink`}
@@ -341,6 +354,24 @@ export function ReviewScreen() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setKatagoGameOpen(true)}
+            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sm:text-sm"
+          >
+            <Cpu className="size-4" aria-hidden="true" />
+            <span>{lang === "pt" ? "Jogar contra KataGo" : "Play KataGo"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPlayLobbyOpen(true)}
+            className="btn-quiet flex items-center gap-1.5 border-pine/30 px-3 py-1.5 text-xs font-semibold text-pine hover:border-pine hover:bg-pine/5 sm:text-sm"
+          >
+            <Users className="size-4" aria-hidden="true" />
+            <span>{lang === "pt" ? "Jogar online" : "Play online"}</span>
+          </button>
+
           {/* KataGo Updates button */}
           <button
             type="button"
